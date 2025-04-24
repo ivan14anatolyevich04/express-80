@@ -1,8 +1,11 @@
 import { Router } from 'express';
-import { requireAuth } from '../app.js';
+import { requireAuth} from '../app.js';
 import { models } from '../public/models/models.js';
+import jwt from 'jsonwebtoken';
+import 'dotenv/config';
 const router = Router();
 
+const JWT_SECRET = process.env.JWT_SECRET;
 // Временная "база данных" пользователей
 const users = [
   { id: 1, username: 'admin', password: '12345' }
@@ -10,7 +13,7 @@ const users = [
 
 // Маршрут для страницы входа
 router.get('/login', (req, res) => {
-  if (req.session.user) {
+  if (req.cookies.token) {
     return res.redirect('/dashboard');
   }
   res.render('login', { error: null });
@@ -22,7 +25,14 @@ router.post('/login', (req, res) => {
   const user = users.find(u => u.username === username && u.password === password);
 
   if (user) {
-    req.session.user = user;
+    const token = jwt.sign({ user }, JWT_SECRET, { expiresIn: '1h' });
+    
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 3600000 // 1 час
+    });
+    
     return res.redirect('/dashboard');
   }
 
@@ -31,25 +41,21 @@ router.post('/login', (req, res) => {
 
 // Выход из системы
 router.get('/logout', (req, res) => {
-  req.session.destroy(err => {
-    if (err) {
-      return res.redirect('/dashboard');
-    }
-    res.redirect('/login');
-  });
+  res.clearCookie('token');
+  res.redirect('/login');
 });
 
-// Dashboard (главная страница после входа)
+// Dashboard
 router.get('/dashboard', requireAuth, (req, res) => {
-  
   res.render('dashboard', {
-    user: req.session.user,
+    user: req.user,
     models: models
   });
 });
+
 router.get('/all-descriptions', requireAuth, (req, res) => {
   res.render('all-descriptions', {
-    user: req.session.user,
+    user: req.user,
     models: models.map(model => ({
       id: model.id,
       name: model.name,
