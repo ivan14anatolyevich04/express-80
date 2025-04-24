@@ -1,32 +1,49 @@
 import express from 'express';
 import session from 'express-session';
-import RedisStore from 'connect-redis';
 import { createClient } from 'redis';
+import { RedisStore } from 'connect-redis';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.routes.js';
 import modelRoutes from './routes/models.routes.js';
 
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Initialize Redis client
-const redisClient = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379'
-});
+// Конфигурация Redis с резервным хранилищем в памяти
+const setupSessionStore = async () => {
+  try {
+    const redisClient = createClient({
+      url: process.env.REDIS_URL || 'redis://127.0.0.1:6379',
+      socket: {
+        reconnectStrategy: (retries) => {
+          if (retries > 5) {
+            console.log('Превышено количество попыток подключения к Redis');
+            return new Error('Не удалось подключиться к Redis');
+          }
+          return Math.min(retries * 100, 5000);
+        }
+      }
+    });
 
-redisClient.on('error', (err) => {
-  console.error('Redis connection error:', err);
-});
+    redisClient.on('error', (err) => {
+      console.error('Redis error:', err);
+    });
 
-await redisClient.connect().catch(console.error);
+    await redisClient.connect();
+    console.log('Успешное подключение к Redis');
 
-// Initialize Redis session store
-const redisStore = new RedisStore({
-  client: redisClient,
-  prefix: 'session:',
-  ttl: 86400 // Session TTL in seconds (1 day)
-});
+    return new RedisStore({
+      client: redisClient,
+      prefix: 'session:',
+      ttl: 86400
+    });
+  } catch (err) {
+    console.error('Не удалось подключиться к Redis, используется MemoryStore:', err);
+    return null; // Вернет null, и мы будем использовать MemoryStore
+  }
+};
 
 const app = express();
 
@@ -34,36 +51,32 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration with Redis
+// Инициализация хранилища сессий
+const sessionStore = await setupSessionStore();
+
 app.use(session({
-  store: redisStore,
-  secret: process.env.SESSION_SECRET || 'your_strong_secret_key_here',
+  store: sessionStore || undefined, // Если Redis недоступен, будет использован MemoryStore
+  secret: process.env.SESSION_SECRET || 'your_secret_key_here',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // Set to true in production if using HTTPS
+    secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 86400000, // 1 day in milliseconds
-    sameSite: 'lax'
+    maxAge: 86400000
   }
 }));
 
-// Template engine configuration
+// Остальная конфигурация приложения
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
-
-// Static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Routes
-app.use(authRoutes);
-app.use('/models', modelRoutes);
-
-// Root route
+// Маршруты
 app.get('/', (req, res) => {
   res.render('index');
 });
-
+app.use(authRoutes); // Основные маршруты авторизации
+app.use('/models', modelRoutes); // Маршруты моделей
 // Login route
 app.get('/login', (req, res) => {
   res.render('login');
@@ -82,18 +95,16 @@ export function requireAuth(req, res, next) {
   next();
 }
 
-// Start server (for development)
+
 if (process.env.NODE_ENV !== 'production') {
   const port = process.env.PORT || 3000;
   app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
-  });
-}
+    console.log(`Сервер запущен на http://localhost:${port}`);
+    console.log(sessionStore ? 
+      'Используется RedisStore для сессий' : 
+      'Используется MemoryStore для сессий (не для production)');
+  })};
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  await redisClient.quit();
-  process.exit();
-});
+
 
 export default app;
