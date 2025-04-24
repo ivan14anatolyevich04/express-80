@@ -1,19 +1,12 @@
-extends layout
-
-block content
-  .auth-container
-    .login-form
-      h1 Login
-      if error
-        .error-message= error
-      
-      form(method="POST", action="/login")
-        .form-group
-          label(for="username") Username:
-          input(type="text", id="username", name="username", required)
-        
-        .form-group
-          label(for="password") Password:
-          input(type="password", id="password", name="password", required)
-        
-        button(type="submit") Login
+doctype html
+html(lang="en")
+  head
+    meta(charset="UTF-8")
+    title Главная страница
+    style
+      | body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+      | a { display: block; margin-bottom: 20px; padding: 10px 20px; background-color: #007BFF; color: white; border-radius: 5px; text-decoration: none; }
+  body
+    h1 Добро пожаловать на главную страницу!
+    a(href="/login") Войти
+    a(href="/dashboard") Панель управления
