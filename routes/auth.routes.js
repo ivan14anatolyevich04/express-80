@@ -1,10 +1,11 @@
+import 'dotenv/config';
 import { Router } from 'express';
 import { requireAuth } from '../app.js';
 import { models } from '../public/models/models.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { promises as fs } from 'fs';
-import 'dotenv/config';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
