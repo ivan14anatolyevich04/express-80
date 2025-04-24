@@ -1,141 +1,91 @@
 import { Router } from 'express';
 import { requireAuth } from '../app.js';
 import { models } from '../public/models/models.js';
-import jwt from 'jsonwebtoken';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { promises as fs } from 'fs';
 import 'dotenv/config';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = Router();
 
-// Mock database
-const users = [
-  { 
-    id: 1, 
-    username: 'admin', 
-    password: '12345',
-    role: 'admin'
-  }
-];
-
-// Login page
-router.get('/login', (req, res) => {
+// Middleware для проверки доступности фона
+const checkBackground = async (req, res, next) => {
   try {
-    if (req.cookies.token) {
-      return res.redirect('/dashboard');
-    }
-    res.render('login', { 
-      error: null,
-      csrfToken: req.csrfToken?.() || '' // Если используете CSRF
-    });
-  } catch (err) {
-    console.error('Login page error:', err);
-    res.status(500).render('error', { 
-      message: 'Failed to load login page' 
-    });
-  }
-});
-
-// Login handler
-router.post('/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-
-    // Validation
-    if (!username || !password) {
-      return res.status(400).render('login', {
-        error: 'Username and password are required',
-        username: username || ''
+    const model = models.find(m => m.id == req.params.id);
+    if (!model) {
+      return res.status(404).render('error', {
+        message: 'Model not found',
+        user: req.user
       });
     }
 
-    // Find user
-    const user = users.find(u => 
-      u.username === username.trim() && 
-      u.password === password
-    );
+    req.modelData = {
+      ...model,
+      backgroundClass: 'background-default'
+    };
 
-    if (!user) {
-      return res.status(401).render('login', {
-        error: 'Invalid username or password',
-        username: username
-      });
+    if (model.background) {
+      const backgroundPath = path.join(
+        __dirname, 
+        '../public/backgrounds', 
+        model.background
+      );
+      
+      try {
+        await fs.access(backgroundPath);
+        req.modelData.backgroundClass = '';
+      } catch (err) {
+        console.log(`Background image not found: ${backgroundPath}`);
+      }
     }
 
-    // Generate JWT
-    const token = jwt.sign(
-      { 
-        userId: user.id,
-        username: user.username,
-        role: user.role 
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
-    // Set cookie
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 3600000 // 1 hour
-    });
-
-    // Successful login
-    console.log(`User ${username} logged in`);
-    return res.redirect('/dashboard');
-
-  } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).render('login', {
-      error: 'Internal server error. Please try again.',
-      username: req.body.username || ''
-    });
-  }
-});
-
-// Logout
-router.get('/logout', (req, res) => {
-  try {
-    res.clearCookie('token');
-    console.log('User logged out');
-    res.redirect('/login');
-  } catch (err) {
-    console.error('Logout error:', err);
-    res.status(500).redirect('/');
-  }
-});
-
-// Dashboard
-router.get('/dashboard', requireAuth, (req, res) => {
-  try {
-    res.render('dashboard', {
-      user: req.user, // Добавляется в requireAuth middleware
-      models: models,
-      title: 'Dashboard'
-    });
-  } catch (err) {
-    console.error('Dashboard error:', err);
+    next();
+  } catch (error) {
+    console.error('Background check error:', error);
     res.status(500).render('error', {
-      message: 'Failed to load dashboard'
+      message: 'Error processing background',
+      user: req.user
+    });
+  }
+};
+
+// Просмотр конкретной модели
+router.get('/:id', requireAuth, checkBackground, async (req, res) => {
+  try {
+    res.render('model-view', {
+      user: req.user, // Извлекается из JWT в requireAuth
+      model: req.modelData,
+      title: `${req.modelData.name} - Model Viewer`
+    });
+  } catch (error) {
+    console.error('Model view error:', error);
+    res.status(500).render('error', {
+      message: 'Failed to load model',
+      user: req.user
     });
   }
 });
 
-// Descriptions page
-router.get('/all-descriptions', requireAuth, (req, res) => {
+// Список всех моделей (если нужен)
+router.get('/', requireAuth, (req, res) => {
   try {
-    res.render('all-descriptions', {
+    res.render('models-list', {
       user: req.user,
       models: models.map(model => ({
         id: model.id,
         name: model.name,
-        description: model.description
+        thumbnail: model.thumbnail
       })),
       title: 'All Models'
     });
-  } catch (err) {
-    console.error('Descriptions page error:', err);
+  } catch (error) {
+    console.error('Models list error:', error);
     res.status(500).render('error', {
-      message: 'Failed to load descriptions'
+      message: 'Failed to load models list',
+      user: req.user
     });
   }
 });
