@@ -1,0 +1,25 @@
+extends layout
+
+block content
+  .all-descriptions-container
+    h1 Все описания моделей оружия
+    
+    .descriptions-grid
+      each model in models
+        .description-card
+          .card-header
+            h2.model-title= model.name
+          
+          .card-body
+            p.model-description= model.description
+            
+            .card-actions
+              a.btn.btn-view(href=`/models/${model.id}`) 
+                | 3D Модель
+                i.fas.fa-cube
+             
+
+    .navigation
+      a.btn-back(href="/dashboard") 
+        i.fas.fa-arrow-left
+        | Вернуться в Dashboard

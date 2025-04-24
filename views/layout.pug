@@ -1,0 +1,31 @@
+doctype html
+html(lang="ru")
+head
+  meta(charset="UTF-8")
+  meta(name="viewport", content="width=device-width, initial-scale=1.0")
+  title 3D Model Viewer
+  link(rel="stylesheet", href="/css/style.css")
+  
+body
+  header
+    nav
+      if user
+        a(href="/dashboard") Список моделей
+        a(href="/all-descriptions") Все описания
+        .logo-container
+          img(src="/img/zash_ot_2.jpg", alt="Логотип", class="nav-logo")
+        a(href="/logout", class="logout") Выйти из приложения (#{user.username})
+      else
+        a(href="/login") Войти
+
+  main
+    block content
+
+  footer
+    p МБУ Заречный ЦБС © ver 1.2 2025
+
+    script(src="/scripts/three.js") 
+    script(src="/scripts/orbitControls.js") 
+    script(src="/scripts/GLTFloader.js") 
+
+  block scripts

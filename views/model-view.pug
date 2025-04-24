@@ -1,0 +1,173 @@
+extends layout
+
+block content
+  .model-viewer
+    .model-header
+      h1= model.name
+      a(href="/dashboard", class="back-button") ← На главную
+    
+    .model-container(class=model.backgroundClass, style=model.background && !model.backgroundClass ? `background-image: url(/backgrounds/${model.background})` : '') 
+      canvas#webgl-canvas
+    
+    .model-controls
+      button#rotate-control Вращение
+      button#zoom-control Масштаб
+      button#reset-control Сброс
+      button#demo-control Демо
+      .model-info
+        p#model-info-text Используйте мышь для управления
+
+block scripts
+  script(type="module").
+    // Установка фона или класса по умолчанию
+    const bgElement = document.querySelector('.model-container');
+    const bgImage = '#{model.background}';
+    
+    if (bgImage && !bgElement.classList.contains('background-default')) {
+      bgElement.style.backgroundImage = `url('/backgrounds/${bgImage}')`;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Инициализация Three.js
+      const canvas = document.getElementById('webgl-canvas');
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+      
+      // Освещение
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+      scene.add(ambientLight);
+      
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      directionalLight.position.set(5, 10, 7);
+      scene.add(directionalLight);
+      
+      // Загрузка модели
+      const loader = new THREE.GLTFLoader();
+      let currentModel = null;
+      let demoMode = false;
+      let demoAnimationId = null;
+      
+      try {
+        const gltf = await loader.loadAsync('#{model.path}');
+        currentModel = gltf.scene;
+        
+        // Центрирование и масштабирование
+        const box = new THREE.Box3().setFromObject(currentModel);
+        const center = box.getCenter(new THREE.Vector3());
+        currentModel.position.sub(center);
+        
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scale = 3 / maxDim;
+        currentModel.scale.set(scale, scale, scale);
+        
+        scene.add(currentModel);
+      } catch (error) {
+        console.error('Ошибка загрузки модели:', error);
+      }
+      
+      // Позиция камеры
+      camera.position.z = 5;
+      
+      // OrbitControls
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.25;
+      
+      // Функция демо-режима
+      function toggleDemoMode() {
+        demoMode = !demoMode;
+        const demoBtn = document.getElementById('demo-control');
+        
+        if (demoMode) {
+          // Вход в демо-режим
+          demoBtn.classList.add('active');
+          controls.enabled = false;
+          
+          // Приближение на 50%
+          const targetPosition = camera.position.clone().multiplyScalar(0.5);
+          const startPosition = camera.position.clone();
+          
+          // Плавное перемещение камеры
+          const duration = 1000; // 1 секунда
+          const startTime = Date.now();
+          
+          function animateCamera() {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            camera.position.lerpVectors(startPosition, targetPosition, progress);
+            
+            if (progress < 1) {
+              requestAnimationFrame(animateCamera);
+            } else {
+              // Запуск вращения после завершения анимации камеры
+              startRotation();
+            }
+          }
+          
+          animateCamera();
+        } else {
+          // Выход из демо-режима
+          demoBtn.classList.remove('active');
+          controls.enabled = true;
+          cancelAnimationFrame(demoAnimationId);
+        }
+      }
+      
+      // Функция вращения модели
+      function startRotation() {
+        let angle = 0;
+        const rotationSpeed = 0.005;
+        
+        function rotate() {
+          if (!demoMode) return;
+          
+          angle += rotationSpeed;
+          if (currentModel) {
+            currentModel.rotation.y = angle;
+          }
+          
+          demoAnimationId = requestAnimationFrame(rotate);
+        }
+        
+        rotate();
+      }
+      
+      // Обработчики кнопок
+      document.getElementById('rotate-control').addEventListener('click', () => {
+        controls.enableRotate = true;
+        controls.enableZoom = false;
+      });
+      
+      document.getElementById('zoom-control').addEventListener('click', () => {
+        controls.enableRotate = false;
+        controls.enableZoom = true;
+      });
+      
+      document.getElementById('reset-control').addEventListener('click', () => {
+        camera.position.z = 5;
+        controls.reset();
+        if (currentModel) currentModel.rotation.set(0, 0, 0);
+      });
+      
+      document.getElementById('demo-control').addEventListener('click', toggleDemoMode);
+      
+      // Анимация
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      
+      animate();
+      
+      // Обработка изменения размера
+      window.addEventListener('resize', () => {
+        camera.aspect = canvas.clientWidth / canvas.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+      });
+    });
