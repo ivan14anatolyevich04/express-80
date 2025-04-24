@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Middleware
+// Мiddleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -42,7 +42,7 @@ app.get('/', (req, res) => {
   }
 });
 
-// Экспорт функции проверки авторизации
+// Функция проверки авторизации
 export function requireAuth(req, res, next) {
   if (req.session.user) {
     return next();
@@ -50,8 +50,5 @@ export function requireAuth(req, res, next) {
   res.redirect('/login');
 }
 
-// Запуск сервера
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+// Экспортируем объект приложения
+export default app;
