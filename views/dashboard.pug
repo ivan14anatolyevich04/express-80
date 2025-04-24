@@ -1,0 +1,62 @@
+extends layout
+
+block content
+  .dashboard
+    h1 Оружие Победы
+    
+    .model-gallery
+      h2 Модели оружия
+      .model-grid
+        each model in models
+          .model-card
+            h3= model.name
+            a(href=`/models/${model.id}`, class="view-button") Показать модель
+            .model-preview(data-model-path=model.path)
+              canvas.preview-canvas
+
+block scripts
+  script.
+    // Инициализация превью моделей
+    document.addEventListener('DOMContentLoaded', () => {
+      const previews = document.querySelectorAll('.model-preview');
+      
+      previews.forEach(preview => {
+        const canvas = preview.querySelector('.preview-canvas');
+        const modelPath = preview.dataset.modelPath;
+        
+        // Упрощенная инициализация Three.js для превью
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        renderer.setSize(200, 200);
+        
+        const light = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(light);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(0, 10, 10);
+        scene.add(directionalLight);
+        
+        camera.position.z = 3;
+        
+        new THREE.GLTFLoader().load(
+          modelPath,
+          (gltf) => {
+            scene.add(gltf.scene);
+            animate();
+          },
+          undefined,
+          (error) => console.error('Preview error:', error)
+        );
+        
+        const controls = new THREE.OrbitControls(camera, canvas);
+        controls.enableZoom = false;
+        controls.enablePan = false;
+        
+        function animate() {
+          requestAnimationFrame(animate);
+          controls.update();
+          renderer.render(scene, camera);
+        }
+      });
+    });
