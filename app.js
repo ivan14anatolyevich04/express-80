@@ -1,3 +1,4 @@
+
 import express from 'express';
 import session from 'express-session';
 import path from 'path';
@@ -10,45 +11,59 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Middlewares
+app.use(express.json());                      // JSON parser
+app.use(express.urlencoded({ extended: true })); // Body parser for forms
 
-// Настройка сессии
+// Session setup
 app.use(session({
   secret: 'your_secret_key',
   resave: false,
   saveUninitialized: true,
-  cookie: { secure: false }
+  cookie: { secure: false },
 }));
 
-// Шаблонизатор Pug
-app.set('views', path.join(__dirname, 'views')); // Устанавливаем директорию для шаблонов
-app.set('view engine', 'pug');                   // Используем движок шаблонов Pug
+// Template engine configuration
+app.set('views', path.join(__dirname, 'views')); // View directory
+app.set('view engine', 'pug');                  // Using Pug as template engine
 
-// Статические файлы
-app.use(express.static(path.join(__dirname, 'public'))); // Подключаем публичные статичные файлы
+// Static files
+app.use(express.static(path.join(__dirname, 'public'))); // Serve static assets
 
-// Маршруты
-app.use(authRoutes);           // Авторизация
-app.use('/models', modelRoutes); // Модели
+// Routes
+app.use(authRoutes);                           // Authorization-related routes
+app.use('/models', modelRoutes);              // Model-specific routes
 
-// Обработка корневого маршрута '/'
+// Root route ('/')
 app.get('/', (req, res) => {
-  if (req.session.user) {
-    res.render('index');       // Отображаем главную страницу
-  } else {
-    res.redirect('/login');    // Перенаправление на вход, если не авторизирован
-  }
+  res.render('index');                         // Render the home page without any authentication check
 });
 
-// Функция проверки авторизации
+// Route to '/login'
+app.get('/login', (req, res) => {
+  res.render('login');                         // Show login page
+});
+
+// Protected dashboard route with authorization check
+app.get('/dashboard', requireAuth, (req, res) => {
+  res.render('dashboard');                     // Accessible only when logged in
+});
+
+// Function to verify user is authenticated
 export function requireAuth(req, res, next) {
-  if (req.session.user) {
-    return next();             // Продолжение обработки запросов, если авторизованы
+  if (!req.session.user) {
+    return res.redirect('/login');             // Redirect unauthenticated users to login
   }
-  res.redirect('/login');      // Иначе перенаправляем на страницу входа
+  next();                                      // Allow access for authorized users
 }
 
-// Экспортируем объект приложения
+// Start server for development purposes
+if (process.env.NODE_ENV !== 'production') {
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`);
+  });
+}
+
+// Exporting application object
 export default app;
