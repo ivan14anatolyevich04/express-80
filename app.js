@@ -26,20 +26,26 @@ app.set('view engine', 'pug');
 // JWT middleware
 export function requireAuth(req, res, next) {
   const token = req.cookies.token;
-  
+
   if (!token) {
+    console.log('requireAuth: No token found, redirecting to login.'); // Добавим лог
     return res.redirect('/login');
   }
 
   try {
+    // Убедитесь, что JWT_SECRET здесь тот же, что и при sign
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded.user;
-    next();
+    console.log('requireAuth: Token decoded:', decoded); // Добавим лог
+    req.user = decoded; // ИСПРАВЛЕНО: присваиваем весь объект
+    next(); // Переходим к следующему middleware/обработчику
   } catch (err) {
+    console.error('requireAuth: Error verifying token:', err.message); // Добавим лог ошибки
+    // Возможно, токен истек или невалиден
     res.clearCookie('token');
     return res.redirect('/login');
   }
 }
+
 
 // Routes
 app.use(authRoutes);
