@@ -78,7 +78,7 @@ const models = [
     { id: 2, name: 'Пистолет Коровина', path: '/models/pistol_of_korovin.glb', description: descmodels.korovin, background: 'bg_2.jpg'  },
     { id: 3, name: 'Пистолет револьвер', path: '/models/revolver.glb', description: descmodels.revolver, background: 'bg_3.jpg' },
     { id: 4, name: 'Пистолет Токарева - ТТ', path: '/models/tokarev.glb', description: descmodels.tokarev, background: 'bg_tokarev_800.jpg' },
-    { id: 5, name: 'Винтовка Мосина', path: '/models/mosin_rifle.glb', description: descmodels.mosin , background: 'bg_4.jpg'},
+    { id: 5, name: 'Винтовка Мосина', path: '/models/mosin_rifle.glb', description: descmodels.mosin , background: 'bg_mosina.jpg'},
     { id: 6, name: 'Винтовка Токарева', path: '/models/tokarevs_svt-38.glb', description: descmodels.svt_tokarev , background: 'bg_svt_2.jpeg'},
     { id: 7, name: 'Противотанковая винтовка', path: '/models/atr_2_ptrd.glb', description: descmodels.antitank_rifle, background: 'ptrd.jpg'},
     { id: 8, name: 'Пистолет - пулемёт Шпагина', path: '/models/smg_ppsh.glb', description: descmodels.shpagin_pp, background: 'ppsh.jpg'},
@@ -90,4 +90,5 @@ const models = [
   ];
   
   export { models }
+
   
